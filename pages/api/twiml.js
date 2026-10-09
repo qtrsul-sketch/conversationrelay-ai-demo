@@ -40,32 +40,36 @@ export default function handler(req, res) {
   const similarity = parseFloat(req.query.similarity) || 0.75;
   const wsUrl = `wss://${NGROK_URL}/ws`;
 
-  const greeting =
+    const greeting =
     mode === "booking"
-      ? "Hi! I can help you book an appointment. What day works best for you?"
-      : "Hi! I am your support agent. How can I help you today?";
+      ? "السلام عليكم، أنا المساعد الشخصي لسلطان. أقدر أساعدك في حجز موعد، وش الوقت المناسب لك؟"
+      : "السلام عليكم، أنا المساعد الشخصي لسلطان. كيف أقدر أخدمك؟";
 
   // Build TTS attributes for ElevenLabs
   // Format: [VoiceID]-[Model]-[Speed]_[Stability]_[Similarity]
-  let ttsAttrs = "";
+  let ttsAttrs = `ttsProvider="ElevenLabs"`;
+
   if (voiceId) {
-    const voiceString = `${voiceId}-${model}-${speed.toFixed(1)}_${stability.toFixed(1)}_${similarity.toFixed(1)}`;
-    ttsAttrs = `ttsProvider="ElevenLabs" voice="${voiceString}" elevenlabsTextNormalization="on"`;
+    const voiceString =
+      `${voiceId}-${model}-${speed.toFixed(1)}_${stability.toFixed(1)}_${similarity.toFixed(1)}`;
+
+    ttsAttrs =
+      `ttsProvider="ElevenLabs" voice="${voiceString}" elevenlabsTextNormalization="on"`;
   }
 
   res.setHeader("Content-Type", "text/xml");
+
   res.send(`<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Connect>
     <ConversationRelay
-  url="wss://YOUR-DOMAIN/ws"
-  language="ar-AE"
-  ttsLanguage="ar-AE"
-  transcriptionLanguage="ar-AE"
-  ttsProvider="ElevenLabs"
-  voice="VOICE_ID"
-  welcomeGreeting="السلام عليكم، أنا المساعد الشخصي لسلطان، كيف أقدر أخدمك؟"
-/>
+      url="${wsUrl}"
+      language="ar-AE"
+      ttsLanguage="ar-AE"
+      transcriptionLanguage="ar-AE"
+      ${ttsAttrs}
+      welcomeGreeting="${greeting}"
+    />
   </Connect>
 </Response>`);
 }
