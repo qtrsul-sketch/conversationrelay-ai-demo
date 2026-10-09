@@ -36,13 +36,25 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-async function aiResponse(conversation) {
+async function aiResponse(conversation, task = "") {
+  const taskPrompt = task
+    ? `
+المهمة الحالية في هذه المكالمة:
+${task}
+
+نفذ هذه المهمة أثناء المكالمة.
+لا تخرج عن هدف المكالمة.
+إذا لم يكن الخيار المطلوب متاحاً، اسأل عن أقرب بديل مناسب.
+لا توافق على أي دفع أو التزام مالي بدون موافقة سلطان.
+`
+    : "";
+
   const response = await openai.chat.completions.create({
     model: process.env.OPENAI_MODEL || "gpt-4o-mini",
     messages: [
       {
         role: "system",
-        content: SYSTEM_PROMPT,
+        content: SYSTEM_PROMPT + taskPrompt,
       },
       ...conversation,
     ],
@@ -66,9 +78,17 @@ app.prepare().then(() => {
     path: "/ws",
   });
 
-  wss.on("connection", (ws) => {
-    console.log("WebSocket connected");
+ wss.on("connection", (ws, request) => {
+  console.log("WebSocket connected");
 
+  const requestUrl = new URL(
+    request.url,
+    `http://${request.headers.host}`
+  );
+
+  ws.task = requestUrl.searchParams.get("task") || "";
+
+  console.log("Call task:", ws.task);
     ws.on("message", async (data) => {
       try {
         const message = JSON.parse(data.toString());
@@ -94,7 +114,10 @@ app.prepare().then(() => {
           });
 
           try {
-            const response = await aiResponse(conversation);
+            const response = await aiResponse(
+  conversation,
+  ws.task
+);
 
             conversation.push({
               role: "assistant",
