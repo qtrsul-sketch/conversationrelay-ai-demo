@@ -1,61 +1,44 @@
 /**
  * TwiML endpoint for ConversationRelay.
  *
- * Generates TwiML that connects incoming calls to ConversationRelay WebSocket.
- * Configures ElevenLabs TTS voice settings and greeting based on workflow mode.
- *
- * ElevenLabs voice format: [VoiceID]-[Model]-[Speed]_[Stability]_[Similarity]
- * Example: ZF6FPAbjXT4488VcRRnw-flash_v2_5-1.2_1.0_1.0
+ * Connects the phone call to the ConversationRelay WebSocket
+ * using Gulf Arabic speech recognition and Arabic TTS.
  *
  * @route POST /api/twiml
- * @query {string} mode - Workflow mode: "support" or "booking"
- * @query {string} voiceId - ElevenLabs voice ID
- * @query {string} model - ElevenLabs model ID
- * @query {number} speed - Voice speed (0.7-1.2)
- * @query {number} stability - Voice stability (0-1)
- * @query {number} similarity - Voice similarity (0-1)
- * @returns {string} TwiML XML response
+ * @query {string} mode - "support" or "booking"
  */
 
 import { validateTwilioRequest } from "../../lib/twilio-validate.mjs";
 
 export default function handler(req, res) {
   // ============================================================
-  // SECURITY: WEBHOOK SIGNATURE VALIDATION
-  // Do not remove or bypass this check.
+  // SECURITY: TWILIO WEBHOOK SIGNATURE VALIDATION
   // ============================================================
   if (process.env.NODE_ENV === "production") {
     if (!validateTwilioRequest(req)) {
-      return res.status(403).json({ error: "Invalid Twilio signature" });
+      return res.status(403).json({
+        error: "Invalid Twilio signature",
+      });
     }
   }
   // ============================================================
 
   const { NGROK_URL } = process.env;
+
+  if (!NGROK_URL) {
+    return res.status(500).json({
+      error: "NGROK_URL is not configured",
+    });
+  }
+
   const mode = req.query.mode || "support";
-  const voiceId = req.query.voiceId || "";
-  const model = req.query.model || "flash_v2_5";
-  const speed = parseFloat(req.query.speed) || 1.0;
-  const stability = parseFloat(req.query.stability) || 0.5;
-  const similarity = parseFloat(req.query.similarity) || 0.75;
+
   const wsUrl = `wss://${NGROK_URL}/ws`;
 
-    const greeting =
+  const greeting =
     mode === "booking"
-      ? "السلام عليكم، أنا المساعد الشخصي لسلطان. أقدر أساعدك في حجز موعد، وش الوقت المناسب لك؟"
+      ? "السلام عليكم، أنا المساعد الشخصي لسلطان. كيف أقدر أساعدك في الحجز؟"
       : "السلام عليكم، أنا المساعد الشخصي لسلطان. كيف أقدر أخدمك؟";
-
-  // Build TTS attributes for ElevenLabs
-  // Format: [VoiceID]-[Model]-[Speed]_[Stability]_[Similarity]
-  let ttsAttrs = `ttsProvider="ElevenLabs"`;
-
-  if (voiceId) {
-    const voiceString =
-      `${voiceId}-${model}-${speed.toFixed(1)}_${stability.toFixed(1)}_${similarity.toFixed(1)}`;
-
-    ttsAttrs =
-      `ttsProvider="ElevenLabs" voice="${voiceString}" elevenlabsTextNormalization="on"`;
-  }
 
   res.setHeader("Content-Type", "text/xml");
 
@@ -64,10 +47,11 @@ export default function handler(req, res) {
   <Connect>
     <ConversationRelay
       url="${wsUrl}"
-      language="ar-AE"
+      ttsProvider="Amazon"
+      voice="Hala-Neural"
       ttsLanguage="ar-AE"
+      transcriptionProvider="Google"
       transcriptionLanguage="ar-AE"
-      ${ttsAttrs}
       welcomeGreeting="${greeting}"
     />
   </Connect>
