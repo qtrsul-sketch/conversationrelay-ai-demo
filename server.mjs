@@ -9,7 +9,16 @@ dotenv.config();
 
 const dev = process.env.NODE_ENV !== "production";
 const PORT = process.env.PORT || 3000;
-const SYSTEM_PROMPT = "You are a helpful assistant. This conversation is being translated to voice, so answer carefully. When you respond, please spell out all numbers. Do not include emojis, bullet points, or special symbols.";
+const SYSTEM_PROMPT = `
+أنت مساعد شخصي صوتي لسلطان.
+
+تحدث دائماً باللغة العربية وبلهجة خليجية طبيعية وواضحة.
+لا تستخدم الإنجليزية إلا إذا طلب منك المستخدم ذلك صراحة.
+اجعل ردودك قصيرة وطبيعية ومناسبة لمكالمة هاتفية.
+لا تستخدم القوائم أو الرموز أو الإيموجي.
+انطق الأرقام والتواريخ والأوقات بطريقة عربية طبيعية.
+إذا لم تفهم كلام المتصل، اطلب منه إعادة الجملة بالعربي.
+`;
 
 const sessions = new Map();
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
