@@ -9,6 +9,7 @@ dotenv.config();
 
 const dev = process.env.NODE_ENV !== "production";
 const PORT = process.env.PORT || 3000;
+
 const SYSTEM_PROMPT = `
 أنت المساعد الشخصي الصوتي الخاص بسلطان.
 
@@ -30,20 +31,24 @@ const SYSTEM_PROMPT = `
 `;
 
 const sessions = new Map();
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
 async function aiResponse(conversation) {
   const response = await openai.chat.completions.create({
-  model: process.env.OPENAI_MODEL || "gpt-4o-mini",
-  messages: [
-    { role: "system", content: SYSTEM_PROMPT },
-    ...conversation
-  ],
-  temperature: 0.4,
-});
     model: process.env.OPENAI_MODEL || "gpt-4o-mini",
-    messages: [{ role: "system", content: SYSTEM_PROMPT }, ...conversation],
+    messages: [
+      {
+        role: "system",
+        content: SYSTEM_PROMPT,
+      },
+      ...conversation,
+    ],
+    temperature: 0.4,
   });
+
   return response.choices[0].message.content;
 }
 
@@ -56,46 +61,91 @@ app.prepare().then(() => {
     handle(req, res, parsedUrl);
   });
 
-  const wss = new WebSocketServer({ server, path: "/ws" });
+  const wss = new WebSocketServer({
+    server,
+    path: "/ws",
+  });
 
   wss.on("connection", (ws) => {
     console.log("WebSocket connected");
 
     ws.on("message", async (data) => {
-      const message = JSON.parse(data);
+      try {
+        const message = JSON.parse(data.toString());
 
-      if (message.type === "setup") {
-        console.log("Setup for call:", message.callSid);
-        ws.callSid = message.callSid;
-        sessions.set(message.callSid, []);
-      } else if (message.type === "prompt") {
-        console.log("Prompt:", message.voicePrompt);
-        const conversation = sessions.get(ws.callSid) || [];
-        conversation.push({ role: "user", content: message.voicePrompt });
+        if (message.type === "setup") {
+          console.log("Setup for call:", message.callSid);
 
-        try {
-          const response = await aiResponse(conversation);
-          conversation.push({ role: "assistant", content: response });
-          ws.send(JSON.stringify({ type: "text", token: response, last: true }));
-          console.log("Response:", response);
-        } catch (err) {
-          console.error("OpenAI error:", err);
-          ws.send(JSON.stringify({
-  type: "text",
-  token: "صار عندي خطأ بسيط، ممكن تعيد كلامك مرة ثانية؟",
-  last: true
-}));
+          ws.callSid = message.callSid;
+          sessions.set(message.callSid, []);
+
+          return;
         }
+
+        if (message.type === "prompt") {
+          console.log("Prompt:", message.voicePrompt);
+
+          const conversation =
+            sessions.get(ws.callSid) || [];
+
+          conversation.push({
+            role: "user",
+            content: message.voicePrompt,
+          });
+
+          try {
+            const response = await aiResponse(conversation);
+
+            conversation.push({
+              role: "assistant",
+              content: response,
+            });
+
+            sessions.set(ws.callSid, conversation);
+
+            ws.send(
+              JSON.stringify({
+                type: "text",
+                token: response,
+                last: true,
+              })
+            );
+
+            console.log("Response:", response);
+          } catch (err) {
+            console.error("OpenAI error:", err);
+
+            ws.send(
+              JSON.stringify({
+                type: "text",
+                token:
+                  "صار عندي خطأ بسيط، ممكن تعيد كلامك مرة ثانية؟",
+                last: true,
+              })
+            );
+          }
+        }
+      } catch (err) {
+        console.error("WebSocket message error:", err);
       }
     });
 
     ws.on("close", () => {
       console.log("WebSocket closed");
-      sessions.delete(ws.callSid);
+
+      if (ws.callSid) {
+        sessions.delete(ws.callSid);
+      }
+    });
+
+    ws.on("error", (err) => {
+      console.error("WebSocket error:", err);
     });
   });
 
   server.listen(PORT, () => {
-    console.log(`Server running at http://localhost:${PORT}`);
+    console.log(
+      `Server running at http://localhost:${PORT}`
+    );
   });
 });
