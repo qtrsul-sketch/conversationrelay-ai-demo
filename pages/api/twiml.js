@@ -58,10 +58,14 @@ export default function handler(req, res) {
 <Response>
   <Connect>
     <ConversationRelay
-      url="${wsUrl}"
-      welcomeGreeting="${greeting}"
-      ${ttsAttrs}
-    />
+  url="wss://YOUR-DOMAIN/ws"
+  language="ar-AE"
+  ttsLanguage="ar-AE"
+  transcriptionLanguage="ar-AE"
+  ttsProvider="ElevenLabs"
+  voice="VOICE_ID"
+  welcomeGreeting="السلام عليكم، أنا المساعد الشخصي لسلطان، كيف أقدر أخدمك؟"
+/>
   </Connect>
 </Response>`);
 }
