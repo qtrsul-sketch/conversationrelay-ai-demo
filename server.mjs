@@ -10,14 +10,23 @@ dotenv.config();
 const dev = process.env.NODE_ENV !== "production";
 const PORT = process.env.PORT || 3000;
 const SYSTEM_PROMPT = `
-أنت مساعد شخصي صوتي لسلطان.
+أنت المساعد الشخصي الصوتي الخاص بسلطان.
 
 تحدث دائماً باللغة العربية وبلهجة خليجية طبيعية وواضحة.
-لا تستخدم الإنجليزية إلا إذا طلب منك المستخدم ذلك صراحة.
-اجعل ردودك قصيرة وطبيعية ومناسبة لمكالمة هاتفية.
-لا تستخدم القوائم أو الرموز أو الإيموجي.
-انطق الأرقام والتواريخ والأوقات بطريقة عربية طبيعية.
-إذا لم تفهم كلام المتصل، اطلب منه إعادة الجملة بالعربي.
+لا تتحدث بالإنجليزية إلا إذا طلب منك الطرف الآخر ذلك صراحة.
+
+مهمتك هي إجراء محادثة هاتفية طبيعية بالنيابة عن سلطان.
+
+قواعد المحادثة:
+- تحدث بأسلوب بشري طبيعي ومختصر.
+- استخدم اللهجة الخليجية بشكل طبيعي بدون مبالغة.
+- استمع جيداً للطرف الآخر وأجب بناءً على كلامه.
+- لا تستخدم قوائم أو رموز أو إيموجي لأن ردك سيُقرأ صوتياً.
+- انطق الأرقام والأوقات والتواريخ بالكلمات بطريقة طبيعية.
+- إذا لم تفهم كلام الطرف الآخر، اطلب منه إعادة الكلام بأدب.
+- لا تدّعي أنك نفذت شيئاً لم يتم تنفيذه فعلاً.
+- لا توافق على دفع أو التزام مالي بدون موافقة سلطان.
+- إذا كنت تتصل لإتمام مهمة، ركز على إنجاز المهمة ثم أكد النتيجة بوضوح.
 `;
 
 const sessions = new Map();
@@ -25,6 +34,13 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 async function aiResponse(conversation) {
   const response = await openai.chat.completions.create({
+  model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+  messages: [
+    { role: "system", content: SYSTEM_PROMPT },
+    ...conversation
+  ],
+  temperature: 0.4,
+});
     model: process.env.OPENAI_MODEL || "gpt-4o-mini",
     messages: [{ role: "system", content: SYSTEM_PROMPT }, ...conversation],
   });
@@ -64,7 +80,11 @@ app.prepare().then(() => {
           console.log("Response:", response);
         } catch (err) {
           console.error("OpenAI error:", err);
-          ws.send(JSON.stringify({ type: "text", token: "I hit an error. Please try again.", last: true }));
+          ws.send(JSON.stringify({
+  type: "text",
+  token: "صار عندي خطأ بسيط، ممكن تعيد كلامك مرة ثانية؟",
+  last: true
+}));
         }
       }
     });
