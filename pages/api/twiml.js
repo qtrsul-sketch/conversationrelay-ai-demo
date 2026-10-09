@@ -32,8 +32,13 @@ export default function handler(req, res) {
   }
 
   const mode = req.query.mode || "support";
+const task = req.query.task || "";
+  const wsParams = new URLSearchParams({
+  task: task,
+});
 
-  const wsUrl = `wss://${NGROK_URL}/ws`;
+const wsUrl =
+  `wss://${NGROK_URL}/ws?${wsParams.toString()}`;
 
   const greeting =
     mode === "booking"
